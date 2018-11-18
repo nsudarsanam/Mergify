@@ -1,22 +1,43 @@
-from flask import Flask, request
+from flask import Flask, request,jsonify, make_response
 import requests
 app = Flask(__name__)
-import shopify
 import webbrowser
-import dateutil.parser
-from dateutil import tz
-import pytz
-import datetime
+from datetime import datetime, date, time
+import json
+import string
+import io
+import csv
 
 API_KEY = 'aa41ca35415dda68349438aabcb0da3d'
 SHARED_SECRET = '865ef2cb9f0b03b2627497b1c24b41a9'
 
+class ShopifySession:
+    def __init__(self):
+        self.token = ""
+        self.store = ""
+    
+    def setToken(self,token):
+        self.token = token
+
+    def setStore(self,store):
+        self.store = store
+
+    def getAdminStoreUrl(self):
+        return 'https://' + self.store + '/admin/'
+
+class ShopifyCustomer:
+    def __init__(self,customer):
+        self.__dict__ = customer
+
+currentSession = ShopifySession()
+
 @app.route('/shopify')
 def shopify():
-    print("here")
     print(request.args['shop'])
-    print(buildShopifyPermissionsStoreUrl(request.args['shop']))
-    webbrowser.open(buildShopifyPermissionsStoreUrl(request.args['shop']))
+    currentSession.setStore(request.args['shop'])
+    print(buildShopifyPermissionsStoreUrl(currentSession.store))
+    webbrowser.open(buildShopifyPermissionsStoreUrl(currentSession.store))
+    return jsonify(success=True)
 
 @app.route('/redirect')
 def redirect():
@@ -27,25 +48,80 @@ def redirect():
     print(hmac)
     print(store)
     print(request.args['timestamp'])
-    authToken = getAuthToken(code,store,hmac)
-    getOrders(store,authToken)
-    return 'Success!'
+    currentSession.setToken(getAuthToken(code,currentSession.store,hmac))
+    return jsonify(success=True)
 
-def getOrders(store,authToken):
-    orders = callShopify(getAdminStoreUrl(store) + "orders.json", authToken)
-    for order in orders['orders']:
-        if order['fulfillment_status'] == None:
-            processedAtDate = dateutil.parser.parse(order['processed_at'])
-        localDatetime = processedAtDate.astimezone(dateutil.tz.tzlocal())
-        numDays =(datetime.datetime.now().date() - localDatetime.date()).days
-        if numDays>= 2:
-            print(f'Send a reminder, order has been unfulfilled for {numDays} days')
-        else:
-            print('Orders are all good')
+@app.route('/duplicates/customers')
+def findDuplicateCustomers():
+    customers = callShopify(currentSession.getAdminStoreUrl() + "customers.json", currentSession.token)['customers']
+    si = io.StringIO()
+    cw = csv.writer(si, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+    cw.writerow(['Duplicate Customer', 'Original Customer', 'Duplicate Customer Link','Original Customer Link'])
+    foundDupes = False
+    for i in range(0,len(customers)):  # 0, 1, 2
+        for j in range(i + 1,len(customers)): #1,2,3
+            firstCustomer = customers[i]
+            secondCustomer = customers[j]
+            if areDuplicateCustomers(firstCustomer,secondCustomer):
+                print('Customer {0} and Customer {1} are duplicates {2}'.format(firstCustomer['id'],secondCustomer['id'],True))
+                cw.writerow(generateDuplicateCustomer(firstCustomer,secondCustomer))
+                foundDupes = True
+            else:
+                print('Customer {0} and Customer {1} are duplicates {2}'.format(firstCustomer['id'],secondCustomer['id'],False))
+    if foundDupes:
+        output = make_response(si.getvalue())
+        output.headers["Content-Disposition"] = "attachment; filename=duplicate_customers.csv"
+        output.headers["Content-type"] = "text/csv"
+        return output
+    else:
+        return jsonify(success=True)
+
+def generateDuplicateCustomer(firstCustomer,secondCustomer):
+    t1 = datetime.strptime(firstCustomer['created_at'], "%Y-%m-%dT%H:%M:%SZ")
+    t2 = datetime.strptime(secondCustomer['created_at'], "%Y-%m-%dT%H:%M:%SZ")
+    firstCustomerName = firstCustomer['first_name'] + ' ' + firstCustomer['last_name']
+    secondCustomerName = secondCustomer['first_name'] + ' ' + secondCustomer['last_name']
+    firstCustomerUrl = currentSession.getAdminStoreUrl() + 'customers/' + str(firstCustomer['id'])
+    secondCustomerUrl = currentSession.getAdminStoreUrl() + 'customers/' + str(secondCustomer['id'])
+
+    if t1 <= t2:
+        #customer2 is duplicate of customer1
+        return [secondCustomerName,firstCustomerName,secondCustomerUrl,firstCustomerUrl]
+    else:
+        #customer1 is duplicate of customer2
+        #Duplicate customer name, Original Customer name, Duplicate customer url, Original customer url
+        return [firstCustomerName,secondCustomerName,firstCustomerUrl,secondCustomerUrl]
+
+#[{"DuplicateCustomerName","OriginalCustomerName","DuplicateCustomerUrl","OriginalCustomerUrl"}]
+def areDuplicateCustomers(firstCustomer, secondCustomer):
+    # if 2 people have the same phone number OR same address - 1) tag as duplicate 2) add note 3) apply metadata field
+    translator = str.maketrans('','',string.punctuation + string.whitespace)
+    if firstCustomer['phone'] != None and secondCustomer['phone'] != None and firstCustomer['phone'].translate(translator) == secondCustomer['phone'].translate(translator):
+        print('Customer {0} and Customer {1} have the same phone number'.format(firstCustomer['id'],secondCustomer['id']))
+        return true
+    else:
+        firstCustomer_address1 = firstCustomer['default_address']['address1'].lower()
+        secondCustomer_address1= secondCustomer['default_address']['address1'].lower()
+        firstCustomer_address2 = firstCustomer['default_address']['address2'].lower()
+        secondCustomer_address2= secondCustomer['default_address']['address2'].lower()
+        firstCustomer_city = firstCustomer['default_address']['city'].lower()
+        secondCustomer_city= secondCustomer['default_address']['city'].lower()
+        firstCustomer_province = firstCustomer['default_address']['province'].lower()
+        secondCustomer_province= secondCustomer['default_address']['province'].lower()
+        firstCustomer_country = firstCustomer['default_address']['country'].lower()
+        secondCustomer_country= secondCustomer['default_address']['country'].lower()
+        firstCustomer_zip = firstCustomer['default_address']['zip'].lower()
+        secondCustomer_zip = secondCustomer['default_address']['zip'].lower()
+        return ((firstCustomer_address1.translate(translator) == secondCustomer_address1.translate(translator)) and
+               (firstCustomer_address2.translate(translator) == secondCustomer_address2.translate(translator)) and
+               (firstCustomer_city.translate(translator) == secondCustomer_city.translate(translator)) and 
+               (firstCustomer_province.translate(translator) == secondCustomer_province.translate(translator))and
+               (firstCustomer_country.translate(translator) == secondCustomer_country.translate(translator)) and
+               (firstCustomer_zip.translate(translator) == secondCustomer_zip.translate(translator)))
+        
 
 def callShopify(url,authToken):
     try:
-        print(url)
         response = requests.get(url, headers = {'X-Shopify-Access-Token': authToken})
         responseText = response.json()
         return responseText
@@ -55,8 +131,7 @@ def callShopify(url,authToken):
 
 
 def getAuthToken(code,storename,hmac):
-    url = getAdminStoreUrl(storename) + 'oauth/access_token'
-    print(url)
+    url = currentSession.getAdminStoreUrl() + 'oauth/access_token'
     data = {'client_id':API_KEY,'client_secret':SHARED_SECRET,'code':code, 'hmac':hmac}
     print(data)
     r = requests.post(url, data=data)
@@ -66,13 +141,13 @@ def getAuthToken(code,storename,hmac):
   
 def buildShopifyPermissionsStoreUrl(storename):
     scope="read_customers,write_customers,read_orders,write_orders"
-    return getAdminStoreUrl(storename) + '/oauth/authorize?client_id=' + API_KEY + '&scope='+ scope +'&redirect_uri=' + getRedirectUri() 
+    return currentSession.getAdminStoreUrl() + '/oauth/authorize?client_id=' + API_KEY + '&scope='+ scope +'&redirect_uri=' + getRedirectUri() 
 
-def getAdminStoreUrl(storename):
-    return 'https://' + storename + '/admin/'
+# def getAdminStoreUrl(storename):
+#     return 'https://' + storename + '/admin/'
 
 def getRedirectUri():
-    return 'https://8d7e9a1e.ngrok.io/redirect'
+    return 'https://8026c3ee.ngrok.io/redirect'
    
 
 
@@ -82,7 +157,15 @@ def getRedirectUri():
 # # verify nonce
 ## verify hmac
 ## validate store name
+## load test apis
+## pagination of apis
+
+#V2
+ # tag the later customer as dupe of oldest
+    # add note
+    # add metadata
+   
 # */
 
 
-##STORE: https://8d7e9a1e.ngrok.io/shopify?shop=thoughtfoxstore.myshopify.com
+##STORE: https://b84f132c.ngrok.io/shopify?shop=thoughtfoxstore.myshopify.com

@@ -7,6 +7,7 @@ import json
 import string
 import io
 import csv
+import sys
 
 API_KEY = 'aa41ca35415dda68349438aabcb0da3d'
 SHARED_SECRET = '865ef2cb9f0b03b2627497b1c24b41a9'
@@ -59,15 +60,21 @@ def findDuplicateCustomers():
     cw.writerow(['Duplicate Customer', 'Original Customer', 'Duplicate Customer Link','Original Customer Link'])
     foundDupes = False
     for i in range(0,len(customers)):  # 0, 1, 2
-        for j in range(i + 1,len(customers)): #1,2,3
-            firstCustomer = customers[i]
+        firstCustomer = customers[i]
+        origCustomer = firstCustomer
+        for j in range(0,len(customers)): #1,2,3
+            if i == j:
+                continue
+            origCreatedAt = datetime.strptime(origCustomer['created_at'], "%Y-%m-%dT%H:%M:%SZ")  
             secondCustomer = customers[j]
             if areDuplicateCustomers(firstCustomer,secondCustomer):
-                print('Customer {0} and Customer {1} are duplicates {2}'.format(firstCustomer['id'],secondCustomer['id'],True))
-                cw.writerow(generateDuplicateCustomer(firstCustomer,secondCustomer))
-                foundDupes = True
-            else:
-                print('Customer {0} and Customer {1} are duplicates {2}'.format(firstCustomer['id'],secondCustomer['id'],False))
+                secondCustomerCreatedAt = datetime.strptime(secondCustomer['created_at'], "%Y-%m-%dT%H:%M:%SZ")
+                if secondCustomerCreatedAt <= origCreatedAt:
+                    origCustomer = secondCustomer
+                    foundDupes = True
+        if origCustomer['id'] != firstCustomer['id']:
+            cw.writerow(generateDuplicateCustomer(firstCustomer,origCustomer))
+
     if foundDupes:
         output = make_response(si.getvalue())
         output.headers["Content-Disposition"] = "attachment; filename=duplicate_customers.csv"
@@ -76,21 +83,22 @@ def findDuplicateCustomers():
     else:
         return jsonify(success=True)
 
-def generateDuplicateCustomer(firstCustomer,secondCustomer):
-    t1 = datetime.strptime(firstCustomer['created_at'], "%Y-%m-%dT%H:%M:%SZ")
-    t2 = datetime.strptime(secondCustomer['created_at'], "%Y-%m-%dT%H:%M:%SZ")
-    firstCustomerName = firstCustomer['first_name'] + ' ' + firstCustomer['last_name']
-    secondCustomerName = secondCustomer['first_name'] + ' ' + secondCustomer['last_name']
-    firstCustomerUrl = currentSession.getAdminStoreUrl() + 'customers/' + str(firstCustomer['id'])
-    secondCustomerUrl = currentSession.getAdminStoreUrl() + 'customers/' + str(secondCustomer['id'])
+def generateDuplicateCustomer(currentCustomer,origCustomer):
+    # t1 = datetime.strptime(firstCustomer['created_at'], "%Y-%m-%dT%H:%M:%SZ")
+    # t2 = datetime.strptime(secondCustomer['created_at'], "%Y-%m-%dT%H:%M:%SZ")
+    currentCustomerName = currentCustomer['first_name'] + ' ' + currentCustomer['last_name']
+    origCustomerName = origCustomer['first_name'] + ' ' + origCustomer['last_name']
+    currentCustomerUrl = currentSession.getAdminStoreUrl() + 'customers/' + str(currentCustomer['id'])
+    origCustomerUrl = currentSession.getAdminStoreUrl() + 'customers/' + str(origCustomer['id'])
 
-    if t1 <= t2:
-        #customer2 is duplicate of customer1
-        return [secondCustomerName,firstCustomerName,secondCustomerUrl,firstCustomerUrl]
-    else:
-        #customer1 is duplicate of customer2
-        #Duplicate customer name, Original Customer name, Duplicate customer url, Original customer url
-        return [firstCustomerName,secondCustomerName,firstCustomerUrl,secondCustomerUrl]
+    return [currentCustomerName,origCustomerName,currentCustomerUrl,origCustomerUrl]
+    # if t1 <= t2:
+    #     #customer2 is duplicate of customer1
+    #     return [secondCustomerName,firstCustomerName,secondCustomerUrl,firstCustomerUrl]
+    # else:
+    #     #customer1 is duplicate of customer2
+    #     #Duplicate customer name, Original Customer name, Duplicate customer url, Original customer url
+    #     return [firstCustomerName,secondCustomerName,firstCustomerUrl,secondCustomerUrl]
 
 #[{"DuplicateCustomerName","OriginalCustomerName","DuplicateCustomerUrl","OriginalCustomerUrl"}]
 def areDuplicateCustomers(firstCustomer, secondCustomer):

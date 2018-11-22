@@ -51,15 +51,59 @@ def redirect():
     tokens[store] = getAuthToken(code,store,hmac)
     return jsonify(success=True)
 
+@app.route('/duplicates/orders')
+def findOrdersPlacedByDuplicateCustomers():
+    store = request.args['shop']
+    dupeCusts = getDuplicateCustomers(store)
+    si = io.StringIO()
+    cw = csv.writer(si, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+    cw.writerow(['Order Name', 'Order Link','Duplicate Customer', 'Original Customer', 'Duplicate Customer Link','Original Customer Link'])
+
+    if len(dupeCusts) > 0:
+        orders = callShopify(getAdminStoreUrl(store) + 'orders.json', tokens[store])['orders']
+        for order in orders:
+            customer = order['customer']
+            if customer != None:
+                if customer['id'] in dupeCusts:
+                    pair = dupeCusts[customer['id']]                    
+                    cw.writerow([order['name'],getOrderLink(store,order['id']),getCustomerName(pair[0]),getCustomerName(pair[1]),getCustomerLink(store,pair[0]['id']),getCustomerLink(store,pair[1]['id'])])
+    else:
+        cw.writerow('No duplicate customers found!','','','','','')
+    
+    output = make_response(si.getvalue())
+    output.headers["Content-Disposition"] = "attachment; filename=orders_placed_by_duplicate_customers.csv"
+    output.headers["Content-type"] = "text/csv"
+    return output        
+    
+
 @app.route('/duplicates/customers')
 def findDuplicateCustomers():
     store = request.args['shop']
+    dupeCusts = getDuplicateCustomers(store)
+    si = io.StringIO()
+    cw = csv.writer(si, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+    cw.writerow(['Duplicate Customer', 'Original Customer', 'Duplicate Customer Link','Original Customer Link'])
+
+    if len(dupeCusts) == 0:
+        cw.writerow('No duplicate customers found!','','','')
+
+    for customerid,customerPair in dupeCusts.items():
+        currentCustomerName = getCustomerName(customerPair[0])
+        origCustomerName = getCustomerName(customerPair[1])
+        currentCustomerUrl = getCustomerLink(store,customerPair[0]['id'])
+        origCustomerUrl = getCustomerLink(store,customerPair[1]['id']) 
+        cw.writerow([currentCustomerName,origCustomerName,currentCustomerUrl,origCustomerUrl])
+
+    output = make_response(si.getvalue())
+    output.headers["Content-Disposition"] = "attachment; filename=duplicate_customers.csv"
+    output.headers["Content-type"] = "text/csv"
+    return output
+
+def getDuplicateCustomers(store):
+    dupes = {}
+
     if store in tokens:
         customers = callShopify(getAdminStoreUrl(store) + "customers.json", tokens[store])['customers']
-        si = io.StringIO()
-        cw = csv.writer(si, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-        cw.writerow(['Duplicate Customer', 'Original Customer', 'Duplicate Customer Link','Original Customer Link'])
-        foundDupes = False
         for i in range(0,len(customers)):  
             firstCustomer = customers[i]
             origCustomer = firstCustomer
@@ -74,26 +118,25 @@ def findDuplicateCustomers():
                         origCustomer = secondCustomer
                         foundDupes = True
             if origCustomer['id'] != firstCustomer['id']:
-                cw.writerow(generateDuplicateCustomer(firstCustomer,origCustomer,store))
-
-        if foundDupes:
-            output = make_response(si.getvalue())
-            output.headers["Content-Disposition"] = "attachment; filename=duplicate_customers.csv"
-            output.headers["Content-type"] = "text/csv"
-            return output
-        else:
-            return jsonify(success=True)
-    return jsonify(success=True)
+                dupes[firstCustomer['id']] = [firstCustomer,origCustomer]
+    return dupes
 
 def generateDuplicateCustomer(currentCustomer,origCustomer,store):
-    currentCustomerName = currentCustomer['first_name'] + ' ' + currentCustomer['last_name']
-    origCustomerName = origCustomer['first_name'] + ' ' + origCustomer['last_name']
-    currentCustomerUrl = getAdminStoreUrl(store) + 'customers/' + str(currentCustomer['id'])
-    origCustomerUrl = getAdminStoreUrl(store) + 'customers/' + str(origCustomer['id'])
-
+    currentCustomerName = getCustomerName(currentCustomer)
+    origCustomerName = getCustomerName(origCustomer)
+    currentCustomerUrl = getCustomerLink(store,currentCustomer['id'])
+    origCustomerUrl = getCustomerLink(store,origCustomer['id']) 
     return [currentCustomerName,origCustomerName,currentCustomerUrl,origCustomerUrl]
-    
-#[{"DuplicateCustomerName","OriginalCustomerName","DuplicateCustomerUrl","OriginalCustomerUrl"}]
+
+def getCustomerLink(store,custId):
+    return getAdminStoreUrl(store) + 'customers/' + str(custId)
+
+def getCustomerName(customer):
+    return customer['first_name'] + ' ' + customer['last_name']
+
+def getOrderLink(store,orderId):
+    return getAdminStoreUrl(store) + 'orders/' + str(orderId)
+
 def areDuplicateCustomers(firstCustomer, secondCustomer):
     # if 2 people have the same phone number OR same address - 1) tag as duplicate 2) add note 3) apply metadata field
     translator = str.maketrans('','',string.punctuation + string.whitespace)
@@ -155,22 +198,26 @@ def getAdminStoreUrl(store):
 
 # /*
 # TODO:
-## load test apis
+## loadtest apis
 ## pagination of apis
     ## bulk create and delete customers
 ## add support for orders
 ## add buttons for export
+## add unit tests
 
 #V1.1:
 ## on callbacks
     # # verify nonce
     ## verify hmac
     ## validate store name
+## use past 60 orders
 
 #V2
  # tag the later customer as dupe of oldest
-# add note
-# add metadata
+# add note on customer
+# add metadata on customer
+# tag later order 
+
 
    
 # */

@@ -8,3 +8,5 @@ ngrok
 *.yml
 
 __pycache__/mergify.cpython-36.pyc
+
+tokens.json

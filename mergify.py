@@ -1,4 +1,4 @@
-from flask import Flask, request,jsonify, make_response
+from flask import Flask, request,jsonify, make_response, render_template
 import requests
 import webbrowser
 from datetime import datetime, date, time
@@ -13,6 +13,7 @@ API_KEY = 'aa41ca35415dda68349438aabcb0da3d'
 SHARED_SECRET = '865ef2cb9f0b03b2627497b1c24b41a9'
 NUM_CUSTOMERS_PER_PAGE = 50
 NUM_ORDERS_PER_PAGE = 50
+HOST_NAME ='https://c5a11afa.ngrok.io/'
 tokenFilename = 'tokens.json'
 tokens = {}
 
@@ -53,8 +54,8 @@ def redirect():
     tokens[store] = getAuthToken(code,store,hmac)
     return jsonify(success=True)
 
-@app.route('/duplicates/orders')
-def findOrdersPlacedByDuplicateCustomers():
+@app.route('/duplicates/orders/export')
+def findOrdersPlacedByDuplicateCustomersExport():
     store = request.args['shop']
     dupeCusts = getDuplicateCustomers(store)
     si = io.StringIO()
@@ -76,10 +77,24 @@ def findOrdersPlacedByDuplicateCustomers():
     output.headers["Content-Disposition"] = "attachment; filename=orders_placed_by_duplicate_customers.csv"
     output.headers["Content-type"] = "text/csv"
     return output        
+
+@app.route('/duplicates/orders')
+def findDuplicateOrders():
+    store = request.args['shop']
+    dupeCusts = getDuplicateCustomers(store)
+    link = HOST_NAME + ("duplicates/orders/export?shop={0}").format(store)
+    return render_template('orders.html',count=len(dupeCusts),link=link)
     
 
 @app.route('/duplicates/customers')
 def findDuplicateCustomers():
+    store = request.args['shop']
+    dupeCusts = getDuplicateCustomers(store)
+    link = HOST_NAME + ("duplicates/customers/export?shop={0}").format(store)
+    return render_template('customers.html',count=len(dupeCusts),link=link)
+
+@app.route('/duplicates/customers/export')
+def findDuplicateCustomersExport():
     store = request.args['shop']
     dupeCusts = getDuplicateCustomers(store)
     si = io.StringIO()
@@ -100,7 +115,7 @@ def findDuplicateCustomers():
     output.headers["Content-Disposition"] = "attachment; filename=duplicate_customers.csv"
     output.headers["Content-type"] = "text/csv"
     return output
-
+   
 def getDuplicateCustomers(store):
     dupes = {}
 
@@ -205,7 +220,7 @@ def buildShopifyPermissionsStoreUrl(storename):
     return getAdminStoreUrl(storename) + '/oauth/authorize?client_id=' + API_KEY + '&scope='+ scope +'&redirect_uri=' + getRedirectUri() 
 
 def getRedirectUri():
-    return 'https://c5a11afa.ngrok.io/redirect'
+    return HOST_NAME + 'redirect'
 
 def getAdminStoreUrl(store):
         return 'https://' + store + '/admin/'
@@ -216,11 +231,10 @@ def xstr(s):
 
 # /*
 # TODO:
-## pagination of apis
-    ## bulk create and delete customers
-## add buttons for export
-## add unit tests
+## format mergify template
 ## testing more than 1 store
+## switch to domain
+## add app icon
 
 #V1.1:
 ## on callbacks

@@ -1,0 +1,7 @@
+<!doctype html>
+<title>Hello from Flask</title>
+{% if count > 0 %}
+  <h1>Found {{ count }} duplicate customers. <a href="{{link}}">Export</a> the full list</h1>
+{% else %}
+  <h1>Congratulations, there are no duplicate customers</h1>
+{% endif %}

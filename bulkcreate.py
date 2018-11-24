@@ -13,7 +13,10 @@ TOKEN_FILENAME = 'tokens.json'
 STORE = "thoughtfoxstore.myshopify.com"
 STORE_URL = "https://thoughtfoxstore.myshopify.com/admin/"
 TOTAL_CUSTOMERS = 60 #50 dupes, 10 uniques
-TOTAL_ORDERS = 120 # 
+ORDER_PER_CUSTOMER = 2 # 
+NUM_CUSTOMERS_PER_PAGE = 50
+VARIANT_ID1 = 15916405293145
+VARIANT_ID2 = 15916405260377
 tokens = {}
 
 
@@ -30,8 +33,37 @@ def createCustomers():
         time.sleep(3)
 
 def createOrders():
+    allCustomers = getPaginatedCustomers()
+    
+    for customer in allCustomers:
+        order = createOrder(customer['id'],VARIANT_ID1)
+        postOrderToShopify(order)
+        time.sleep(3)
+        order = createOrder(customer['id'],VARIANT_ID2)
+        postOrderToShopify(order)
+        time.sleep(3)
     # get all customers
     # for every customer, create and assign to TOTAL_ORDERS/len(all customers)
+
+def createOrder(customerId,variant_id):
+    orderContainer = {}
+    order = {}
+    line_items = []
+    line_item = {}
+    line_item['variant_id'] = variant_id
+    line_item['quantity'] = 1
+    line_items.append(line_item)
+    order['line_items'] = line_items
+    customer={}
+    customer['id']=customerId
+    order['customer'] = customer
+    order['fulfillment_status'] = 'fulfilled'
+    orderContainer['order'] = order
+    return orderContainer
+
+def postOrderToShopify(order):
+    responseText = postToShopify(STORE_URL + "orders.json",tokens[STORE],order)
+    print(responseText)
 
 def postCustomerToShopify(customer):
     customerContainer = {}    
@@ -90,6 +122,26 @@ def postToShopify(url,authToken,payload):
     except requests.exceptions.RequestException as e:
         responseText = e
 
+
+def callShopify(url,authToken):
+    try:
+        response = requests.get(url, headers = {'X-Shopify-Access-Token': authToken})
+        responseText = response.json()
+        return responseText
+    except requests.exceptions.RequestException as e:
+        print(e)
+        sys.exit(1)
+
+def getPaginatedCustomers():
+    numCustomers = callShopify(STORE_URL + "customers/count.json", tokens[STORE])['count']
+    numPages = int(numCustomers/NUM_CUSTOMERS_PER_PAGE) + 1
+    print(numPages)
+    allCustomers = []
+    for i in range(1,numPages + 1):
+        pageUrl = "?page={0}".format(i)
+        customers = callShopify(STORE_URL + "customers.json" + pageUrl, tokens[STORE])['customers']
+        allCustomers.extend(customers)
+    return allCustomers
 
 if __name__ == '__main__':
     main()

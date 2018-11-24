@@ -121,13 +121,6 @@ def getDuplicateCustomers(store):
                 dupes[firstCustomer['id']] = [firstCustomer,origCustomer]
     return dupes
 
-def generateDuplicateCustomer(currentCustomer,origCustomer,store):
-    currentCustomerName = getCustomerName(currentCustomer)
-    origCustomerName = getCustomerName(origCustomer)
-    currentCustomerUrl = getCustomerLink(store,currentCustomer['id'])
-    origCustomerUrl = getCustomerLink(store,origCustomer['id']) 
-    return [currentCustomerName,origCustomerName,currentCustomerUrl,origCustomerUrl]
-
 def getCustomerLink(store,custId):
     return getAdminStoreUrl(store) + 'customers/' + str(custId)
 
@@ -198,12 +191,11 @@ def getAdminStoreUrl(store):
 
 # /*
 # TODO:
-## loadtest apis
 ## pagination of apis
     ## bulk create and delete customers
-## add support for orders
 ## add buttons for export
 ## add unit tests
+## testing more than 1 store
 
 #V1.1:
 ## on callbacks
@@ -213,13 +205,12 @@ def getAdminStoreUrl(store):
 ## use past 60 orders
 
 #V2
+## loadtest apis
  # tag the later customer as dupe of oldest
 # add note on customer
 # add metadata on customer
 # tag later order 
 
-
-   
 # */
 
 

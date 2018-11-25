@@ -220,7 +220,7 @@ def getAuthToken(code,storename,hmac):
 
 def buildShopifyPermissionsStoreUrl(storename):
     scope="read_customers,write_customers,read_orders,write_orders"
-    return getAdminStoreUrl(storename) + '/oauth/authorize?client_id=' + API_KEY + '&scope='+ scope +'&redirect_uri=' + getRedirectUri() 
+    return getAdminStoreUrl(storename) + 'oauth/authorize?client_id=' + API_KEY + '&scope='+ scope +'&redirect_uri=' + getRedirectUri() 
 
 def getRedirectUri():
     return HOST_NAME + 'redirect'

@@ -85,7 +85,6 @@ def findDuplicateOrders():
     link = HOST_NAME + ("duplicates/orders/export?shop={0}").format(store)
     return render_template('orders.html',count=len(dupeCusts),link=link)
     
-
 @app.route('/duplicates/customers')
 def findDuplicateCustomers():
     store = request.args['shop']

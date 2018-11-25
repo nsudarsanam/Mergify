@@ -14,6 +14,7 @@ SHARED_SECRET = '865ef2cb9f0b03b2627497b1c24b41a9'
 NUM_CUSTOMERS_PER_PAGE = 50
 NUM_ORDERS_PER_PAGE = 50
 HOST_NAME ='https://mergify.herokuapp.com/'
+HOST_NAME_DEV ='https://c5a11afa.ngrok.io/'
 tokenFilename = 'tokens.json'
 tokens = {}
 
@@ -42,10 +43,10 @@ def shopify():
     print(request.args['shop'])
     store = request.args['shop']
     print(buildShopifyPermissionsStoreUrl(store))
-    return redirect(buildShopifyPermissionsStoreUrl(store))
+    return redirect(buildShopifyPermissionsStoreUrl(store),code="302")
 
-@app.route('/redirect')
-def redirect():
+@app.route('/redirectShop')
+def redirectShop():
     store = request.args['shop']
     code = request.args['code']
     hmac = request.args['hmac']
@@ -221,7 +222,7 @@ def buildShopifyPermissionsStoreUrl(storename):
     return getAdminStoreUrl(storename) + 'oauth/authorize?client_id=' + API_KEY + '&scope='+ scope +'&redirect_uri=' + getRedirectUri() 
 
 def getRedirectUri():
-    return HOST_NAME + 'redirect'
+    return HOST_NAME + 'redirectShop'
 
 def getAdminStoreUrl(store):
         return 'https://' + store + '/admin/'

@@ -1,2 +1,2 @@
-web: gunicorn mergify:mergify
+web: gunicorn mergify:app
 

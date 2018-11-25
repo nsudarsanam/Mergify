@@ -1,6 +1,5 @@
-from flask import Flask, request,jsonify, make_response, render_template
+from flask import Flask, request,jsonify, make_response, render_template,redirect
 import requests
-import webbrowser
 from datetime import datetime, date, time
 import json
 import string
@@ -43,8 +42,7 @@ def shopify():
     print(request.args['shop'])
     store = request.args['shop']
     print(buildShopifyPermissionsStoreUrl(store))
-    webbrowser.open(buildShopifyPermissionsStoreUrl(store))
-    return jsonify(success=True)
+    return redirect(buildShopifyPermissionsStoreUrl(store), code="302")
 
 @app.route('/redirect')
 def redirect():

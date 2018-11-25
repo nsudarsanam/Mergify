@@ -42,7 +42,7 @@ def shopify():
     print(request.args['shop'])
     store = request.args['shop']
     print(buildShopifyPermissionsStoreUrl(store))
-    return redirect(buildShopifyPermissionsStoreUrl(store), code="302")
+    return redirect(buildShopifyPermissionsStoreUrl(store))
 
 @app.route('/redirect')
 def redirect():

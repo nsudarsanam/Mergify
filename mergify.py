@@ -8,6 +8,7 @@ import io
 import csv
 import sys
 import atexit
+import os
 
 API_KEY = 'aa41ca35415dda68349438aabcb0da3d'
 SHARED_SECRET = '865ef2cb9f0b03b2627497b1c24b41a9'
@@ -25,8 +26,11 @@ atexit.register(writeAuthTokens)
 
 def startup():
     global tokens
-    with open(tokenFilename) as file:
-        tokens = json.load(file)
+
+    if os.path.isfile(tokenFilename):
+        with open(tokenFilename) as file:
+            tokens = json.load(file)
+
 
 def create_app():
     startup()

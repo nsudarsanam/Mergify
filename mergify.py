@@ -230,10 +230,8 @@ def xstr(s):
 
 # /*
 # TODO:
-## format mergify template
 ## testing more than 1 store
 ## switch to domain
-## add app icon
 
 #V1.1:
 ## on callbacks

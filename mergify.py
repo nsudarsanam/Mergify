@@ -235,6 +235,7 @@ def xstr(s):
 # TODO:
 ## testing more than 1 store
 ## switch to domain
+## add confirmation html
 
 #V1.1:
 ## on callbacks
@@ -252,6 +253,10 @@ def xstr(s):
 # add metadata on customer
 # tag later order 
 
+#To change domain
+# - change appsettings in admin
+# - change hostname headers
+# - change redirects in admin
 # */
 
 

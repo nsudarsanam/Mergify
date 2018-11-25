@@ -13,7 +13,7 @@ API_KEY = 'aa41ca35415dda68349438aabcb0da3d'
 SHARED_SECRET = '865ef2cb9f0b03b2627497b1c24b41a9'
 NUM_CUSTOMERS_PER_PAGE = 50
 NUM_ORDERS_PER_PAGE = 50
-HOST_NAME ='https://c5a11afa.ngrok.io/'
+HOST_NAME ='https://mergify.herokuapp.com/'
 tokenFilename = 'tokens.json'
 tokens = {}
 

@@ -124,7 +124,7 @@ def findDuplicateCustomersExport():
    
 def getDuplicateCustomers(store):
     dupes = {}
-
+    dumpOutTokens()
     if store in tokens:
         customers = getPaginatedCustomers(store)
         for i in range(0,len(customers)):  
@@ -143,6 +143,10 @@ def getDuplicateCustomers(store):
             if origCustomer['id'] != firstCustomer['id']:
                 dupes[firstCustomer['id']] = [firstCustomer,origCustomer]
     return dupes
+
+def dumpOutTokens():
+    for key in tokens:
+        logging.info("[{0}]:[{1}]".format(key, token[key]))
 
 def getCustomerLink(store,custId):
     return getAdminStoreUrl(store) + 'customers/' + str(custId)

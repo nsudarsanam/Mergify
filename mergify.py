@@ -58,7 +58,7 @@ def redirectShop():
     logging.info(request.args['timestamp'])
     authToken = getAuthToken(code,store,hmac)
     updateTokensDict(store,authToken)
-    return jsonify(success=True)
+    return render_template('confirmation.html')
 
 @app.route('/duplicates/orders/export')
 def findOrdersPlacedByDuplicateCustomersExport():

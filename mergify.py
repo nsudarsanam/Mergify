@@ -15,7 +15,7 @@ SHARED_SECRET = '865ef2cb9f0b03b2627497b1c24b41a9'
 NUM_CUSTOMERS_PER_PAGE = 50
 NUM_ORDERS_PER_PAGE = 50
 HOST_NAME ='https://50.116.34.64/'
-HOST_NAME_DEV ='https://c5a11afa.ngrok.io/'
+HOST_NAME_DEV ='https://e565d490.ngrok.io/'
 tokenFilename = 'tokens.json'
 tokens = {}
 
@@ -146,8 +146,9 @@ def getDuplicateCustomers(store):
     return dupes
 
 def dumpOutTokens():
+    logging.info("Length of tokens: {0}".format(len(tokens)))
     for key in tokens:
-        logging.info("[{0}]:[{1}]".format(key, token[key]))
+        logging.info("[{0}]:[{1}]".format(key, tokens[key]))
 
 def getCustomerLink(store,custId):
     return getAdminStoreUrl(store) + 'customers/' + str(custId)

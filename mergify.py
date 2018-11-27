@@ -17,25 +17,25 @@ NUM_ORDERS_PER_PAGE = 50
 HOST_NAME ='https://50.116.34.64/'
 HOST_NAME_DEV ='https://e565d490.ngrok.io/'
 tokenFilename = 'tokens.json'
-tokens = {}
 
-def writeAuthTokens():
+def writeAuthTokens(tokens):
     with open(tokenFilename,'w') as tokenFile:
         tokenFile.write(json.dumps(tokens))
 
-atexit.register(writeAuthTokens)
-
-def startup():
-    global tokens
-
+def readAuthTokens():
+    tokens = {}
     if os.path.isfile(tokenFilename):
         with open(tokenFilename) as file:
             tokens = json.load(file)
+    return tokens
 
+def updateTokensDict(store,token):
+    tokens = readAuthTokens()
+    tokens[store] = token
+    writeAuthTokens(tokens)
 
 def create_app():
     logging.basicConfig(filename='mergify.log',level=logging.DEBUG)
-    startup()
     return Flask(__name__)
 
 app = create_app()
@@ -57,21 +57,20 @@ def redirectShop():
     logging.info(store)
     logging.info(request.args['timestamp'])
     authToken = getAuthToken(code,store,hmac)
-    global tokens
-    tokens[store] = authToken
-    logging.info("Updated auth token:{0} with {1}".format(tokens[store],authToken))
+    updateTokensDict(store,authToken)
     return jsonify(success=True)
 
 @app.route('/duplicates/orders/export')
 def findOrdersPlacedByDuplicateCustomersExport():
     store = request.args['shop']
-    dupeCusts = getDuplicateCustomers(store)
+    tokens = readAuthTokens()
+    dupeCusts = getDuplicateCustomers(store,tokens)
     si = io.StringIO()
     cw = csv.writer(si, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
     cw.writerow(['Order Name', 'Order Link','Duplicate Customer', 'Original Customer', 'Duplicate Customer Link','Original Customer Link'])
 
     if len(dupeCusts) > 0:
-        orders = getPaginatedOrders(store)
+        orders = getPaginatedOrders(store,tokens)
         for order in orders:
             if 'customer' in order:
                 customer = order['customer']
@@ -89,21 +88,24 @@ def findOrdersPlacedByDuplicateCustomersExport():
 @app.route('/duplicates/orders')
 def findDuplicateOrders():
     store = request.args['shop']
-    dupeCusts = getDuplicateCustomers(store)
+    tokens = readAuthTokens()
+    dupeCusts = getDuplicateCustomers(store,tokens)
     link = HOST_NAME + ("duplicates/orders/export?shop={0}").format(store)
     return render_template('orders.html',count=len(dupeCusts),link=link)
     
 @app.route('/duplicates/customers')
 def findDuplicateCustomers():
     store = request.args['shop']
-    dupeCusts = getDuplicateCustomers(store)
+    tokens = readAuthTokens()
+    dupeCusts = getDuplicateCustomers(store,tokens)
     link = HOST_NAME + ("duplicates/customers/export?shop={0}").format(store)
     return render_template('customers.html',count=len(dupeCusts),link=link)
 
 @app.route('/duplicates/customers/export')
 def findDuplicateCustomersExport():
     store = request.args['shop']
-    dupeCusts = getDuplicateCustomers(store)
+    tokens = readAuthTokens()
+    dupeCusts = getDuplicateCustomers(store,tokens)
     si = io.StringIO()
     cw = csv.writer(si, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
     cw.writerow(['Duplicate Customer', 'Original Customer', 'Duplicate Customer Link','Original Customer Link'])
@@ -123,11 +125,10 @@ def findDuplicateCustomersExport():
     output.headers["Content-type"] = "text/csv"
     return output
    
-def getDuplicateCustomers(store):
+def getDuplicateCustomers(store,tokens):
     dupes = {}
-    dumpOutTokens()
     if store in tokens:
-        customers = getPaginatedCustomers(store)
+        customers = getPaginatedCustomers(store,tokens)
         for i in range(0,len(customers)):  
             firstCustomer = customers[i]
             origCustomer = firstCustomer
@@ -145,11 +146,6 @@ def getDuplicateCustomers(store):
                 dupes[firstCustomer['id']] = [firstCustomer,origCustomer]
     return dupes
 
-def dumpOutTokens():
-    logging.info("Length of tokens: {0}".format(len(tokens)))
-    for key in tokens:
-        logging.info("[{0}]:[{1}]".format(key, tokens[key]))
-
 def getCustomerLink(store,custId):
     return getAdminStoreUrl(store) + 'customers/' + str(custId)
 
@@ -159,7 +155,7 @@ def getCustomerName(customer):
 def getOrderLink(store,orderId):
     return getAdminStoreUrl(store) + 'orders/' + str(orderId)
 
-def getPaginatedCustomers(store):
+def getPaginatedCustomers(store,tokens):
     logging.info(tokens[store])
     logging.info(callShopify(getAdminStoreUrl(store) + "customers/count.json", tokens[store]))
     numCustomers = callShopify(getAdminStoreUrl(store) + "customers/count.json", tokens[store])['count']
@@ -172,7 +168,7 @@ def getPaginatedCustomers(store):
         allCustomers.extend(customers)
     return allCustomers
 
-def getPaginatedOrders(store):
+def getPaginatedOrders(store,tokens):
     numOrders = callShopify(getAdminStoreUrl(store) + "orders/count.json?status=any", tokens[store])['count']
     numPages = int(numOrders/NUM_ORDERS_PER_PAGE) + 1
     logging.info(numPages)
@@ -234,7 +230,7 @@ def buildShopifyPermissionsStoreUrl(storename):
     return getAdminStoreUrl(storename) + 'oauth/authorize?client_id=' + API_KEY + '&scope='+ scope +'&redirect_uri=' + getRedirectUri() 
 
 def getRedirectUri():
-    return HOST_NAME + 'redirectShop'
+    return HOST_NAME_DEV + 'redirectShop'
 
 def getAdminStoreUrl(store):
     return 'https://' + store + '/admin/'

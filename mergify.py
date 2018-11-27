@@ -54,6 +54,7 @@ def redirectShop():
     print(hmac)
     print(store)
     print(request.args['timestamp'])
+    global tokens
     tokens[store] = getAuthToken(code,store,hmac)
     return jsonify(success=True)
 

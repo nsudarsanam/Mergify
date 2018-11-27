@@ -57,6 +57,7 @@ def redirectShop():
     logging.info(store)
     logging.info(request.args['timestamp'])
     authToken = getAuthToken(code,store,hmac)
+    global tokens
     tokens[store] = authToken
     logging.info("Updated auth token:{0} with {1}".format(tokens[store],authToken))
     return jsonify(success=True)

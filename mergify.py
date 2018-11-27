@@ -56,8 +56,9 @@ def redirectShop():
     logging.info(hmac)
     logging.info(store)
     logging.info(request.args['timestamp'])
-    global tokens
-    tokens[store] = getAuthToken(code,store,hmac)
+    authToken = getAuthToken(code,store,hmac)
+    tokens[store] = authToken
+    logging.info("Updated auth token:{0} with {1}".format(tokens[store],authToken))
     return jsonify(success=True)
 
 @app.route('/duplicates/orders/export')

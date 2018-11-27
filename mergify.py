@@ -150,6 +150,8 @@ def getOrderLink(store,orderId):
     return getAdminStoreUrl(store) + 'orders/' + str(orderId)
 
 def getPaginatedCustomers(store):
+    print(tokens[store])
+    print(callShopify(getAdminStoreUrl(store) + "customers/count.json", tokens[store]))
     numCustomers = callShopify(getAdminStoreUrl(store) + "customers/count.json", tokens[store])['count']
     numPages = int(numCustomers/NUM_CUSTOMERS_PER_PAGE) + 1
     print(numPages)

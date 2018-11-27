@@ -8,6 +8,7 @@ import csv
 import sys
 import atexit
 import os
+import logging
 
 API_KEY = 'aa41ca35415dda68349438aabcb0da3d'
 SHARED_SECRET = '865ef2cb9f0b03b2627497b1c24b41a9'
@@ -33,6 +34,7 @@ def startup():
 
 
 def create_app():
+    logging.basicConfig(filename='mergify.log',level=logging.DEBUG)
     startup()
     return Flask(__name__)
 
@@ -40,9 +42,9 @@ app = create_app()
 
 @app.route('/shopify')
 def shopify():
-    print(request.args['shop'])
+    logging.info(request.args['shop'])
     store = request.args['shop']
-    print(buildShopifyPermissionsStoreUrl(store))
+    logging.info(buildShopifyPermissionsStoreUrl(store))
     return redirect(buildShopifyPermissionsStoreUrl(store),code="302")
 
 @app.route('/redirectShop')
@@ -50,10 +52,10 @@ def redirectShop():
     store = request.args['shop']
     code = request.args['code']
     hmac = request.args['hmac']
-    print(code)
-    print(hmac)
-    print(store)
-    print(request.args['timestamp'])
+    logging.info(code)
+    logging.info(hmac)
+    logging.info(store)
+    logging.info(request.args['timestamp'])
     global tokens
     tokens[store] = getAuthToken(code,store,hmac)
     return jsonify(success=True)
@@ -151,11 +153,11 @@ def getOrderLink(store,orderId):
     return getAdminStoreUrl(store) + 'orders/' + str(orderId)
 
 def getPaginatedCustomers(store):
-    print(tokens[store])
-    print(callShopify(getAdminStoreUrl(store) + "customers/count.json", tokens[store]))
+    logging.info(tokens[store])
+    logging.info(callShopify(getAdminStoreUrl(store) + "customers/count.json", tokens[store]))
     numCustomers = callShopify(getAdminStoreUrl(store) + "customers/count.json", tokens[store])['count']
     numPages = int(numCustomers/NUM_CUSTOMERS_PER_PAGE) + 1
-    print(numPages)
+    logging.info(numPages)
     allCustomers = []
     for i in range(1,numPages + 1):
         pageUrl = "?page={0}".format(i)
@@ -166,7 +168,7 @@ def getPaginatedCustomers(store):
 def getPaginatedOrders(store):
     numOrders = callShopify(getAdminStoreUrl(store) + "orders/count.json?status=any", tokens[store])['count']
     numPages = int(numOrders/NUM_ORDERS_PER_PAGE) + 1
-    print(numPages)
+    logging.info(numPages)
     allOrders = []
     for i in range(1,numPages + 1):
         pageUrl = "?page={0}&status=any".format(i)
@@ -178,7 +180,7 @@ def areDuplicateCustomers(firstCustomer, secondCustomer):
     # if 2 people have the same phone number OR same address - 1) tag as duplicate 2) add note 3) apply metadata field
     translator = str.maketrans('','',string.punctuation + string.whitespace)
     if firstCustomer['phone'] != None and secondCustomer['phone'] != None and firstCustomer['phone'].translate(translator) == secondCustomer['phone'].translate(translator):
-        print('Customer {0} and Customer {1} have the same phone number'.format(firstCustomer['id'],secondCustomer['id']))
+        logging.info('Customer {0} and Customer {1} have the same phone number'.format(firstCustomer['id'],secondCustomer['id']))
         return true
     else:
         firstCustomer_address1 = xstr(firstCustomer['default_address']['address1']).lower()
@@ -207,17 +209,17 @@ def callShopify(url,authToken):
         responseText = response.json()
         return responseText
     except requests.exceptions.RequestException as e:
-        print(e)
+        logging.info(e)
         sys.exit(1)
 
 
 def getAuthToken(code,storename,hmac):
     url = getAdminStoreUrl(storename) + 'oauth/access_token'
     data = {'client_id':API_KEY,'client_secret':SHARED_SECRET,'code':code, 'hmac':hmac}
-    print(data)
+    logging.info(data)
     r = requests.post(url, data=data)
-    print(r.text)
-    print(r.json()['access_token'])
+    logging.info(r.text)
+    logging.info(r.json()['access_token'])
     return r.json()['access_token']
 
 def buildShopifyPermissionsStoreUrl(storename):
@@ -228,7 +230,7 @@ def getRedirectUri():
     return HOST_NAME + 'redirectShop'
 
 def getAdminStoreUrl(store):
-        return 'https://' + store + '/admin/'
+    return 'https://' + store + '/admin/'
 
 def xstr(s):
     return '' if s is None else s

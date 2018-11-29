@@ -40,6 +40,10 @@ def create_app():
 
 app = create_app()
 
+@app.route('/')
+def root():
+    return jsonify(success=True)
+
 @app.route('/shopify')
 def shopify():
     logging.info(request.args['shop'])

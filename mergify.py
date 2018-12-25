@@ -234,7 +234,7 @@ def buildShopifyPermissionsStoreUrl(storename):
     return getAdminStoreUrl(storename) + 'oauth/authorize?client_id=' + API_KEY + '&scope='+ scope +'&redirect_uri=' + getRedirectUri() 
 
 def getRedirectUri():
-    return HOST_NAME_DEV + 'redirectShop'
+    return HOST_NAME + 'redirectShop'
 
 def getAdminStoreUrl(store):
     return 'https://' + store + '/admin/'

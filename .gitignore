@@ -10,3 +10,5 @@ ngrok
 __pycache__/mergify.cpython-36.pyc
 
 tokens.json
+
+*.swp

@@ -1,6 +1,5 @@
 from flask import Flask, request,jsonify, make_response, render_template,redirect
 import requests
-from datetime import datetime, date, time
 import json
 import string
 import io
@@ -9,13 +8,14 @@ import sys
 import atexit
 import os
 import logging
+import dateutil.parser
 
 API_KEY = 'aa41ca35415dda68349438aabcb0da3d'
 SHARED_SECRET = '865ef2cb9f0b03b2627497b1c24b41a9'
 NUM_CUSTOMERS_PER_PAGE = 50
 NUM_ORDERS_PER_PAGE = 50
 HOST_NAME ='https://persephone.us/'
-HOST_NAME_DEV ='https://e565d490.ngrok.io/'
+HOST_NAME_DEV ='https://ef2ff400.ngrok.io/'
 tokenFilename = 'tokens.json'
 
 def writeAuthTokens(tokens):
@@ -139,10 +139,10 @@ def getDuplicateCustomers(store,tokens):
             for j in range(0,len(customers)): 
                 if i == j:
                     continue
-                origCreatedAt = datetime.strptime(origCustomer['created_at'], "%Y-%m-%dT%H:%M:%SZ")  
+                origCreatedAt = dateutil.parser.parse(origCustomer['created_at'])    
                 secondCustomer = customers[j]
                 if areDuplicateCustomers(firstCustomer,secondCustomer):
-                    secondCustomerCreatedAt = datetime.strptime(secondCustomer['created_at'], "%Y-%m-%dT%H:%M:%SZ")
+                    secondCustomerCreatedAt = dateutil.parser.parse(secondCustomer['created_at'])
                     if secondCustomerCreatedAt <= origCreatedAt:
                         origCustomer = secondCustomer
                         foundDupes = True
@@ -234,7 +234,7 @@ def buildShopifyPermissionsStoreUrl(storename):
     return getAdminStoreUrl(storename) + 'oauth/authorize?client_id=' + API_KEY + '&scope='+ scope +'&redirect_uri=' + getRedirectUri() 
 
 def getRedirectUri():
-    return HOST_NAME + 'redirectShop'
+    return HOST_NAME_DEV + 'redirectShop'
 
 def getAdminStoreUrl(store):
     return 'https://' + store + '/admin/'
@@ -246,7 +246,6 @@ def xstr(s):
 # /*
 # TODO:
 ## testing more than 1 store
-## switch to domain
 
 #V1.1:
 ## on callbacks
@@ -254,6 +253,7 @@ def xstr(s):
     ## verify hmac
     ## validate store name
 ## use past 60 orders
+## redo tokens.json
 
 #V1.5
     ##library between bulkcreate and mergify
@@ -272,3 +272,4 @@ def xstr(s):
 
 
 ##STORE: https://b84f132c.ngrok.io/shopify?shop=thoughtfoxstore.myshopify.com
+##STORE: https://persephone.us/shopify?shop=thoughtfoxstore.myshopify.com
